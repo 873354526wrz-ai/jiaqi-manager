@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>学生请假管理</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif; background: #f5f5f7; color: #1d1d1f; font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+  /* 顶部 */
+  .header { background: #fff; padding: 14px 16px 10px; border-bottom: 1px solid #e5e5ea; position: sticky; top: 0; z-index: 50; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .header-top h1 { font-size: 17px; font-weight: 600; }
+  .month-btn { display: flex; align-items: center; gap: 6px; background: #f0f0f5; border: none; border-radius: 8px; padding: 5px 10px; font-size: 13px; color: #3a3a3c; cursor: pointer; }
+  .month-btn svg { width: 14px; height: 14px; }
+
+  /* 统计 */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { background: #f0f0f5; border-radius: 10px; padding: 10px 6px; text-align: center; }
+  .stat .num { font-size: 22px; font-weight: 600; line-height: 1.2; }
+  .stat .lbl { font-size: 11px; color: #636366; margin-top: 3px; }
+  .stat .num.red { color: #ff3b30; }
+
+  /* 警告条 */
+  .warn-bar { background: #fff1f0; border-left: 3px solid #ff3b30; margin: 10px 12px 0; border-radius: 0 8px 8px 0; padding: 7px 10px; font-size: 12px; color: #c0392b; display: none; }
+  .warn-bar.show { display: block; }
+
+  /* 页签 */
+  .tabs { display: flex; gap: 0; padding: 10px 12px 0; }
+  .tab { flex: 1; text-align: center; padding: 8px 0; font-size: 13px; color: #636366; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 500; }
+  .tab.active { color: #007aff; border-bottom-color: #007aff; }
+
+  /* 网格视图 */
+  .view { display: none; padding: 10px 12px; }
+  .view.active { display: block; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .s-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px 6px 12px;
+    text-align: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.1s;
+    position: relative;
+    user-select: none;
+    min-height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .s-card:active { transform: scale(0.93); background: #f0f5ff; }
+  .s-card .sname { font-size: 15px; font-weight: 500; line-height: 1.4; color: #1d1d1f; letter-spacing: 0.5px; word-break: keep-all; white-space: nowrap; }
+  .s-card .scnt { font-size: 12px; margin-top: 5px; color: #636366; }
+  .s-card .scnt span { font-weight: 600; font-size: 14px; color: #1d1d1f; }
+  .s-card.warn { background: #fff1f0; border-color: #ff3b30; }
+  .s-card.warn .sname { color: #c0392b; }
+  .s-card.warn .scnt span { color: #ff3b30; }
+  .s-card .badge { position: absolute; top: -5px; right: -5px; background: #ff3b30; color: #fff; font-size: 9px; padding: 2px 5px; border-radius: 8px; font-weight: 600; }
+
+  /* 列表视图 */
+  .list-view-inner { background: #fff; border-radius: 12px; overflow: hidden; }
+  .list-item { display: flex; align-items: center; padding: 11px 14px; border-bottom: 1px solid #f2f2f7; gap: 10px; }
+  .list-item:last-child { border-bottom: none; }
+  .list-item.warn { background: #fff8f8; }
+  .li-name { flex: 1; font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+  .li-warn-tag { font-size: 10px; background: #ff3b30; color: #fff; padding: 1px 5px; border-radius: 5px; font-weight: 500; }
+  .li-cnt { font-size: 18px; font-weight: 600; width: 28px; text-align: center; color: #1d1d1f; }
+  .li-cnt.red { color: #ff3b30; }
+  .li-days { font-size: 11px; color: #8e8e93; width: 30px; text-align: center; }
+  .li-btn { background: #007aff; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; min-width: 56px; }
+  .li-btn:active { background: #0051c0; }
+  .li-detail { background: none; border: 1px solid #c7c7cc; color: #636366; border-radius: 8px; padding: 8px 10px; font-size: 13px; cursor: pointer; }
+
+  /* 弹窗底部 */
+  .sheet-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: flex-end; justify-content: center; }
+  .sheet-bg.open { display: flex; }
+  .sheet { background: #fff; border-radius: 18px 18px 0 0; width: 100%; max-width: 500px; padding: 0 0 env(safe-area-inset-bottom,12px); animation: slideUp 0.25s ease; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .sheet-handle { width: 36px; height: 4px; background: #d1d1d6; border-radius: 2px; margin: 10px auto 4px; }
+  .sheet-title { font-size: 16px; font-weight: 600; text-align: center; padding: 8px 16px 14px; border-bottom: 1px solid #f2f2f7; }
+  .sheet-body { padding: 16px; }
+  .sheet-name { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+  .sheet-sub { font-size: 13px; color: #636366; text-align: center; margin-bottom: 16px; }
+  .sheet-sub .cnt-num { color: #ff3b30; font-weight: 600; }
+  .form-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .form-row label { font-size: 12px; color: #636366; display: block; margin-bottom: 4px; }
+  .form-group { flex: 1; }
+  .form-group input, .form-group select { width: 100%; height: 40px; border: 1px solid #d1d1d6; border-radius: 10px; padding: 0 10px; font-size: 14px; background: #f9f9fb; }
+  .quick-days { display: flex; gap: 6px; margin-bottom: 14px; }
+  .qd-btn { flex: 1; height: 36px; border: 1px solid #d1d1d6; border-radius: 8px; background: #f9f9fb; font-size: 13px; cursor: pointer; font-weight: 500; }
+  .qd-btn.sel { background: #007aff; color: #fff; border-color: #007aff; }
+  .btn-confirm { width: 100%; height: 46px; background: #007aff; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .btn-confirm:active { background: #0051c0; }
+  .btn-cancel { width: 100%; height: 40px; background: none; border: none; color: #636366; font-size: 14px; cursor: pointer; margin-top: 6px; }
+
+  /* 明细弹窗 */
+  .detail-log { padding: 2px 0; }
+  .log-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f2f2f7; font-size: 13px; }
+  .log-row:last-child { border-bottom: none; }
+  .log-date { color: #636366; }
+  .log-reason { color: #1d1d1f; }
+  .log-days { font-weight: 500; }
+  .log-del { background: none; border: none; color: #ff3b30; font-size: 12px; cursor: pointer; padding: 2px 4px; }
+  .no-log { text-align: center; color: #aaa; padding: 20px 0; font-size: 13px; }
+
+  /* 月份弹窗 */
+  .month-list { padding: 8px 16px 16px; }
+  .month-item { padding: 13px 4px; border-bottom: 1px solid #f2f2f7; font-size: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .month-item.cur { color: #007aff; font-weight: 600; }
+  .month-item:last-child { border-bottom: none; }
+
+  /* 通知 */
+  .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(44,44,46,0.92); color: #fff; font-size: 13px; padding: 8px 18px; border-radius: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>学生请假管理</h1>
+    <button class="month-btn" id="monthBtn" onclick="openMonthPicker()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span id="monthLabel">2026年5月</span>
+    </button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="num" id="sTotal">32</div><div class="lbl">全班人数</div></div>
+    <div class="stat"><div class="num" id="sLeave">0</div><div class="lbl">本月请假次</div></div>
+    <div class="stat"><div class="num red" id="sWarn">0</div><div class="lbl">超假警告</div></div>
+  </div>
+</div>
+
+<div class="warn-bar" id="warnBar"></div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('grid')">速记模式</div>
+  <div class="tab" onclick="switchTab('list')">详情列表</div>
+</div>
+
+<div class="view active" id="gridView">
+  <div class="grid" id="gridContainer"></div>
+</div>
+
+<div class="view" id="listView">
+  <div class="list-view-inner" id="listContainer"></div>
+</div>
+
+<!-- 请假记录弹窗 -->
+<div class="sheet-bg" id="leaveSheet" onclick="closeSheet(event,'leaveSheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">记录请假</div>
+    <div class="sheet-body">
+      <div class="sheet-name" id="sheetName"></div>
+      <div class="sheet-sub" id="sheetSub"></div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:12px;color:#636366;margin-bottom:6px;display:block">请假天数（快选）</label>
+        <div class="quick-days">
+          <button class="qd-btn sel" onclick="selectDays(this,0.5)">半天</button>
+          <button class="qd-btn sel" onclick="selectDays(this,1)">1天</button>
+          <button class="qd-btn" onclick="selectDays(this,2)">2天</button>
+          <button class="qd-btn" onclick="selectDays(this,3)">3天</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>假别</label>
+          <select id="fReason">
+            <option>病假</option>
+            <option>事假</option>
+            <option>家庭原因</option>
+            <option>其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>日期</label>
+          <input type="date" id="fDate" />
+        </div>
+      </div>
+      <button class="btn-confirm" onclick="confirmLeave()">确认记录</button>
+      <button class="btn-cancel" onclick="closeSheet(null,'leaveSheet')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 明细弹窗 -->
+<div class="sheet-bg" id="detailSheet" onclick="closeSheet(event,'detailSheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="detailTitle">请假明细</div>
+    <div class="sheet-body">
+      <div class="detail-log" id="detailBody"></div>
+      <button class="btn-cancel" style="margin-top:10px" onclick="closeSheet(null,'detailSheet')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 月份选择 -->
+<div class="sheet-bg" id="monthSheet" onclick="closeSheet(event,'monthSheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">选择月份</div>
+    <div class="month-list" id="monthList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 数据 =====
+var STUDENTS = ['李煜宸','聂小凤','刘芷萱','刘昊楠','何可昕','熊昂','王湘怡','张洁妤','蒋宇君','范欣园','熊威','肖紫薇','骆思羽','彭泽昊','陈雅琪','杨名莎','戴金悦','周家欣','陈润婷','陈毅','罗依凡','丁俊杰','王樱霏','车婷','杨语晴','邓贝萱','吴佳蓉','陈涵梦','林钰峰','谭顺红','刘思恒','邓倩琳'];
+
+var DATA_KEY = 'jiaqi_data_v1';
+var records = {};
+
+function loadData() {
+  try { var s = localStorage.getItem(DATA_KEY); if (s) records = JSON.parse(s); } catch(e) {}
+  STUDENTS.forEach(function(n){ if(!records[n]) records[n]=[]; });
+}
+function saveData() {
+  try { localStorage.setItem(DATA_KEY, JSON.stringify(records)); } catch(e) {}
+}
+
+// ===== 当前状态 =====
+var curYear = new Date().getFullYear();
+var curMonth = new Date().getMonth(); // 0-based
+var curStudent = null;
+var curDays = 1;
+
+function getMonthRecords(name, y, m) {
+  return (records[name]||[]).filter(function(r){
+    var d = new Date(r.date);
+    return d.getFullYear()===(y||curYear) && d.getMonth()===(m!==undefined?m:curMonth);
+  });
+}
+
+// ===== 渲染 =====
+function render() {
+  var y = curYear, m = curMonth;
+  document.getElementById('monthLabel').textContent = y+'年'+(m+1)+'月';
+  var totalLeave = 0, warnCount = 0, warnNames = [];
+  STUDENTS.forEach(function(n){
+    var ml = getMonthRecords(n);
+    totalLeave += ml.length;
+    if(ml.length >= 3){ warnCount++; warnNames.push(n); }
+  });
+  document.getElementById('sTotal').textContent = STUDENTS.length;
+  document.getElementById('sLeave').textContent = totalLeave;
+  document.getElementById('sWarn').textContent = warnCount;
+
+  var wb = document.getElementById('warnBar');
+  if(warnNames.length){
+    wb.textContent = '⚠ 本月请假超过2次：' + warnNames.join('、');
+    wb.classList.add('show');
+  } else {
+    wb.classList.remove('show');
+  }
+  renderGrid();
+  renderList();
+}
+
+function renderGrid() {
+  var html = '';
+  STUDENTS.forEach(function(name){
+    var ml = getMonthRecords(name);
+    var cnt = ml.length;
+    var days = ml.reduce(function(s,r){ return s+r.days; },0);
+    var warn = cnt >= 3;
+    html += '<div class="s-card'+(warn?' warn':'')+'" onclick="openLeave(\''+name+'\')">';
+    if(warn) html += '<div class="badge">超假</div>';
+    html += '<div class="sname">'+name+'</div>';
+    html += '<div class="scnt">请假 <span>'+cnt+'</span> 次</div>';
+    if(days > 0) html += '<div style="font-size:11px;color:#8e8e93;margin-top:3px">'+days+'天</div>';
+    html += '</div>';
+  });
+  document.getElementById('gridContainer').innerHTML = html;
+}
+
+function renderList() {
+  var sorted = STUDENTS.slice().sort(function(a,b){
+    var ca = getMonthRecords(a).length, cb = getMonthRecords(b).length;
+    var wa = ca>=3?1:0, wb2 = cb>=3?1:0;
+    if(wb2 !== wa) return wb2 - wa;
+    return cb - ca;
+  });
+  var html = '';
+  sorted.forEach(function(name){
+    var ml = getMonthRecords(name);
+    var cnt = ml.length, days = ml.reduce(function(s,r){return s+r.days;},0);
+    var warn = cnt>=3;
+    html += '<div class="list-item'+(warn?' warn':'')+'">';
+    html += '<div class="li-name">'+name+(warn?'<span class="li-warn-tag">超假</span>':'')+'</div>';
+    html += '<div class="li-cnt'+(warn?' red':'')+'">'+cnt+'</div>';
+    html += '<div class="li-days">'+(days>0?days+'天':'')+'</div>';
+    html += '<button class="li-detail" onclick="openDetail(\''+name+'\')">明细</button>';
+    html += '<button class="li-btn" onclick="openLeave(\''+name+'\')">+请假</button>';
+    html += '</div>';
+  });
+  document.getElementById('listContainer').innerHTML = html;
+}
+
+// ===== 请假弹窗 =====
+function openLeave(name) {
+  curStudent = name;
+  curDays = 1;
+  var ml = getMonthRecords(name);
+  document.getElementById('sheetName').textContent = name;
+  var sub = '本月已请假 <span class="cnt-num">'+ml.length+'</span> 次';
+  if(ml.length >= 2) sub += '&nbsp;⚠ 再请假即超限';
+  document.getElementById('sheetSub').innerHTML = sub;
+  var today = new Date();
+  var ds = today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate());
+  document.getElementById('fDate').value = ds;
+
+  // 重置快选按钮
+  document.querySelectorAll('.qd-btn').forEach(function(b){ b.classList.remove('sel'); });
+  document.querySelectorAll('.qd-btn')[1].classList.add('sel'); // 默认1天
+
+  document.getElementById('leaveSheet').classList.add('open');
+}
+
+function selectDays(btn, days) {
+  curDays = days;
+  document.querySelectorAll('.qd-btn').forEach(function(b){ b.classList.remove('sel'); });
+  btn.classList.add('sel');
+}
+
+function confirmLeave() {
+  var reason = document.getElementById('fReason').value;
+  var date = document.getElementById('fDate').value;
+  if(!date){ showToast('请选择日期'); return; }
+  if(!records[curStudent]) records[curStudent] = [];
+  records[curStudent].push({ date: date, days: curDays, reason: reason });
+  saveData();
+  closeSheet(null, 'leaveSheet');
+  render();
+  var ml = getMonthRecords(curStudent);
+  var msg = '已记录 '+curStudent+' '+curDays+'天'+reason;
+  if(ml.length >= 3) msg += ' · 本月已超假！';
+  showToast(msg);
+}
+
+// ===== 明细弹窗 =====
+function openDetail(name) {
+  var logs = records[name]||[];
+  var ml = getMonthRecords(name);
+  document.getElementById('detailTitle').textContent = name+' 的请假明细（本月'+ml.length+'次）';
+  var html = '';
+  if(!logs.length){ html = '<div class="no-log">暂无请假记录</div>'; }
+  var sorted = logs.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  sorted.forEach(function(r, i){
+    var realIdx = logs.indexOf(r);
+    html += '<div class="log-row">';
+    html += '<span class="log-date">'+r.date+'</span>';
+    html += '<span class="log-reason">'+r.reason+'</span>';
+    html += '<span class="log-days">'+r.days+'天</span>';
+    html += '<button class="log-del" onclick="delLog(\''+name+'\',\''+r.date+'_'+r.reason+'_'+r.days+'\')">撤销</button>';
+    html += '</div>';
+  });
+  document.getElementById('detailBody').innerHTML = html;
+  document.getElementById('detailSheet').classList.add('open');
+}
+
+function delLog(name, key) {
+  var parts = key.split('_');
+  var date = parts[0], reason = parts[1], days = parseFloat(parts[2]);
+  var arr = records[name]||[];
+  var idx = -1;
+  for(var i=arr.length-1;i>=0;i--){
+    if(arr[i].date===date && arr[i].reason===reason && arr[i].days===days){ idx=i; break; }
+  }
+  if(idx>=0){ arr.splice(idx,1); saveData(); render(); openDetail(name); showToast('已撤销一条记录'); }
+}
+
+// ===== 月份切换 =====
+function openMonthPicker() {
+  var html = '';
+  var now = new Date();
+  for(var i=0;i<6;i++){
+    var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    var y = d.getFullYear(), m = d.getMonth();
+    var isCur = (y===curYear && m===curMonth);
+    html += '<div class="month-item'+(isCur?' cur':'')+'" onclick="switchMonth('+y+','+m+')">';
+    html += y+'年'+(m+1)+'月';
+    var total = STUDENTS.reduce(function(s,n){ return s+getMonthRecords(n,y,m).length; },0);
+    html += '<span style="font-size:12px;color:#8e8e93">'+total+'次请假</span>';
+    html += '</div>';
+  }
+  document.getElementById('monthList').innerHTML = html;
+  document.getElementById('monthSheet').classList.add('open');
+}
+
+function switchMonth(y, m) {
+  curYear = y; curMonth = m;
+  closeSheet(null, 'monthSheet');
+  render();
+}
+
+// ===== 工具 =====
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active', (i===0&&tab==='grid')||(i===1&&tab==='list')); });
+  document.getElementById('gridView').classList.toggle('active', tab==='grid');
+  document.getElementById('listView').classList.toggle('active', tab==='list');
+}
+
+function closeSheet(e, id) {
+  if(e && e.target !== document.getElementById(id)) return;
+  document.getElementById(id).classList.remove('open');
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+function pad(n){ return n<10?'0'+n:n; }
+
+// ===== 初始化 =====
+loadData();
+render();
+</script>
+</body>
+</html>
